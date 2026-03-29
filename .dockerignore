@@ -1,0 +1,35 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Tests
+tests/
+infrastructure/test/
+
+# Airflow logs
+airflow/logs/
+
+# Local data
+data/
+tmp/
+*.csv
+*.parquet
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Docker
+docker-compose.yml
+
+# Cache
+.pytest_cache/
