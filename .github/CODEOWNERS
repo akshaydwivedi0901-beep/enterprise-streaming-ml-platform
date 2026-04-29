@@ -1,0 +1,31 @@
+# Global owners
+* @akshaydwivedi0901-beep
+
+# Infrastructure and DevOps
+/.github/ @akshaydwivedi0901-beep
+/infrastructure/ @akshaydwivedi0901-beep
+docker-compose.yml @akshaydwivedi0901-beep
+Dockerfile* @akshaydwivedi0901-beep
+
+# Services
+/services/consumer/ @akshaydwivedi0901-beep
+/services/producer/ @akshaydwivedi0901-beep
+/services/gold_transform/ @akshaydwivedi0901-beep
+/services/silver_transform/ @akshaydwivedi0901-beep
+
+# ML and Data Science
+/services/ml/ @akshaydwivedi0901-beep
+/services/ml_training/ @akshaydwivedi0901-beep
+/services/ml_registry/ @akshaydwivedi0901-beep
+
+# Data Quality and Testing
+data_quality/ @akshaydwivedi0901-beep
+tests/ @akshaydwivedi0901-beep
+pytest.ini @akshaydwivedi0901-beep
+
+# Airflow DAGs
+airflow/dags/ @akshaydwivedi0901-beep
+
+# Documentation
+README.md @akshaydwivedi0901-beep
+*.md @akshaydwivedi0901-beep

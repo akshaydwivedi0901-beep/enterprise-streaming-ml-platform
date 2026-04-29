@@ -1,0 +1,11 @@
+groups:
+  - name: streaming_platform
+    interval: 30s
+    rules:
+      - alert: HighConsumerLag
+        expr: consumer_lag > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High consumer lag"

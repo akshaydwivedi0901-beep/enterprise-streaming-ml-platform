@@ -1,0 +1,109 @@
+name: Security & Dependency Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run weekly on Mondays
+    - cron: '0 0 * * 1'
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  dependency-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run safety check
+      run: |
+        pip install safety
+        safety check
+
+    - name: Run bandit security linter
+      run: |
+        pip install bandit
+        bandit -r services/ infrastructure/ data_quality/ -f json -o bandit-report.json
+
+    - name: Upload Bandit results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'bandit-report.sarif'
+      # Note: Bandit doesn't output SARIF directly, you might need a converter
+
+  container-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build consumer image for scanning
+      run: |
+        docker build -t enterprise-consumer:scan ./services/consumer
+
+    - name: Scan consumer image
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'image'
+        scan-ref: 'enterprise-consumer:scan'
+        format: 'sarif'
+        output: 'trivy-consumer.sarif'
+
+    - name: Upload consumer scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-consumer.sarif'
+
+    - name: Build producer image for scanning
+      run: |
+        docker build -t enterprise-producer:scan ./services/producer
+
+    - name: Scan producer image
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'image'
+        scan-ref: 'enterprise-producer:scan'
+        format: 'sarif'
+        output: 'trivy-producer.sarif'
+
+    - name: Upload producer scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-producer.sarif'

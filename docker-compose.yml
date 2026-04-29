@@ -1,8 +1,6 @@
-services:
+version: '3.8'
 
-  # ---------------------------
-  # ZOOKEEPER
-  # ---------------------------
+services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.0.1
     container_name: zookeeper
@@ -11,9 +9,6 @@ services:
     ports:
       - "2181:2181"
 
-  # ---------------------------
-  # KAFKA (FIXED CONFIG)
-  # ---------------------------
   kafka:
     image: confluentinc/cp-kafka:7.0.1
     container_name: kafka
@@ -24,19 +19,11 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-
-      # ✅ FIXED LISTENERS
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 
-  # ---------------------------
-  # STREAMING CONSUMER
-  # ---------------------------
   consumer:
     build: ./services/consumer
     container_name: consumer
@@ -44,81 +31,99 @@ services:
       - kafka
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
       AWS_DEFAULT_REGION: us-east-1
+      BRONZE_BUCKET: enterprise-streaming-dev-bronze
     ports:
       - "8000:8000"
+    restart: unless-stopped
 
-  # ---------------------------
-  # SPARK MASTER
-  # ---------------------------
   spark:
     build: ./infrastructure/spark
     container_name: spark
-    environment:
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_DEFAULT_REGION: us-east-1
-    command: >
-      /opt/spark/bin/spark-class
-      org.apache.spark.deploy.master.Master
     ports:
       - "8080:8080"
       - "7077:7077"
-    volumes:
-      - .:/opt/jobs
 
-  # ---------------------------
-  # SPARK WORKER
-  # ---------------------------
   spark-worker:
     build: ./infrastructure/spark
     container_name: spark-worker
     depends_on:
       - spark
-    environment:
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_DEFAULT_REGION: us-east-1
-    command: >
-      /opt/spark/bin/spark-class
-      org.apache.spark.deploy.worker.Worker
-      spark://spark:7077
-    volumes:
-      - .:/opt/jobs
+    ports:
+      - "8081:8081"
 
-  # ---------------------------
-  # AIRFLOW WEBSERVER
-  # ---------------------------
   airflow-webserver:
     build: ./airflow
     container_name: airflow-webserver
-    restart: always
     ports:
-      - "8081:8080"
+      - "8082:8080"
     environment:
       AIRFLOW__CORE__EXECUTOR: SequentialExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: sqlite:////airflow/airflow.db
     volumes:
       - ./airflow/dags:/opt/airflow/dags
-      - .:/opt/airflow/project
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: webserver
+      - airflow_logs:/airflow/logs
+    restart: always
 
-  # ---------------------------
-  # AIRFLOW SCHEDULER
-  # ---------------------------
   airflow-scheduler:
     build: ./airflow
     container_name: airflow-scheduler
-    restart: always
     depends_on:
       - airflow-webserver
     environment:
       AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: sqlite:////airflow/airflow.db
     volumes:
       - ./airflow/dags:/opt/airflow/dags
-      - .:/opt/airflow/project
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: scheduler
+      - airflow_logs:/airflow/logs
+    restart: always
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - ./monitoring/recording_rules.yml:/etc/prometheus/recording_rules.yml:ro
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: admin
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - "16686:16686"
+      - "6831:6831/udp"
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+
+volumes:
+  airflow_logs:
+
+networks:
+  default:
+    driver: bridge

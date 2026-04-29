@@ -1,0 +1,6 @@
+groups:
+  - name: streaming_metrics
+    interval: 30s
+    rules:
+      - record: events:processed:rate5m
+        expr: rate(events_processed_total[5m])
