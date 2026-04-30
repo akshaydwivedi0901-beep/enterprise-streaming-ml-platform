@@ -8,3 +8,4 @@ __pycache__/
 *.tfstate.backup
 .terraform.lock.hcl
 infrastructure/terraform/envs/**/.terraform/
+awscliv2.zip
