@@ -127,3 +127,13 @@ volumes:
 networks:
   default:
     driver: bridge
+
+  # Fraud Scoring API
+  api:
+    build: ./services/api
+    container_name: fraud-api
+    ports:
+      - "8082:8082"
+    env_file:
+      - .env
+    restart: on-failure
